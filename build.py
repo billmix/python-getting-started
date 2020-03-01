@@ -1,6 +1,4 @@
-from django.shortcuts import render
-from django.http import HttpResponse
-import urllib
+from ftplib import FTP
 from urllib import request, parse
 import csv
 import os
@@ -9,28 +7,26 @@ import base64
 import http.client
 import time
 import sys
-import shutil
-import logging
-from django.conf import settings
 
-from .models import Greeting
-
-# Create your views here.
-def index(request):
-    # return HttpResponse('Hello from Python!')
-    return render(request, "index.html")
-
-def buildKit(request, kitinput):
+def grabFile(request, kitinput):
     kitkey = kitinput
-
-    url = "http://www84.pair.com/clevtool/shopify-kits/%s.csv" % kitkey
-    with urllib.request.urlopen(url) as f, open('%s.csv' % kitkey, 'wb') as outfile:
-        shutil.copyfileobj(f, outfile)
-
+    ftp = FTP('clevtool.pairserver.com')
+    ftp.login('clevtool_shopify_excelify', 'AHGhAp,Uis6K%DsudHV')
     filename = '%s.csv' % (kitkey)
     message = 'retrieved %s' % (filename)
-    logging.debug(message)
+    print(message)
 
+    localfile = open(filename, 'wb')
+    ftp.retrbinary('RETR ' + filename, localfile.write, 1024)
+
+    ftp.quit
+
+    localfile.close()
+
+    readCSV(filename, kitkey)
+
+
+def readCSV(kitfile, kitkey):
     r1 = 'Variant ID'
     r2 = 'Metafield: ' + kitkey + ' [integer]'
     r3 = 'Variant Metafield: ' + kitkey + ' [integer]'
@@ -40,7 +36,7 @@ def buildKit(request, kitinput):
 
     lineitems = []
 
-    with open(filename, newline='') as csvfile:
+    with open(kitfile) as csvfile:
         reader = csv.DictReader(csvfile)
         for index, row in enumerate(reader):
             if row[r2] == '' and row[r3] == '' and row[r4] == '':
@@ -59,17 +55,23 @@ def buildKit(request, kitinput):
                  'quantity': qty
                 })
                 output = row[r6] + ' ' + row[r5] + ' ' + str(qty)
-                logging.debug(output)
+                print(output)
                 time.sleep(.25)
 
-    logging.debug('Opening connection with Shopify')
+
+    cleanUp(kitfile)
+
+    createDraftOrder(lineitems, kitkey)
+
+def createDraftOrder(lineitems, kitkey):
+    print('Opening connection with Shopify')
     draftorderoutput = {
-        'draft_order':
-        {
-            'tags': '%s Auto Created' % (kitkey),
-            'line_items':lineitems
+            'draft_order':
+            {
+                'tags': '%s Auto Created' % (kitkey),
+                'line_items':lineitems
+            }
         }
-    }
 
     json_order = json.dumps(draftorderoutput)
 
@@ -84,23 +86,8 @@ def buildKit(request, kitinput):
     conn = http.client.HTTPSConnection(host)
     conn.request('POST', endpoint, json_order, headers)
     response = conn.getresponse()
-    logging.debug(response)
 
     conn.close()
 
-    os.remove(filename)
-    return render(request, "build.html", {'response': response})
-
-
-
-def selectKit(request):
-    return render(request, "select.html")
-
-def db(request):
-
-    greeting = Greeting()
-    greeting.save()
-
-    greetings = Greeting.objects.all()
-
-    return render(request, "db.html", {"greetings": greetings})
+def cleanUp(kitfile):
+    os.remove(kitfile)

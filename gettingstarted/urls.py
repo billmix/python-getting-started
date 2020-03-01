@@ -18,4 +18,6 @@ urlpatterns = [
     path("", hello.views.index, name="index"),
     path("db/", hello.views.db, name="db"),
     path("admin/", admin.site.urls),
+    path("build/<kitinput>/", hello.views.buildKit, name="kitinput"),
+    path("select/", hello.views.selectKit, name="select"),
 ]
