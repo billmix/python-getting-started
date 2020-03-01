@@ -1,4 +1,6 @@
+from django.conf import settings
 from django.shortcuts import render
+from django.shortcuts import redirect
 from django.http import HttpResponse
 import urllib
 from urllib import request, parse
@@ -11,7 +13,7 @@ import time
 import sys
 import shutil
 import logging
-from django.conf import settings
+
 
 from .models import Greeting
 
@@ -30,6 +32,8 @@ def buildKit(request, kitinput):
     filename = '%s.csv' % (kitkey)
     message = 'retrieved %s' % (filename)
     logging.debug(message)
+
+    ### Parse CSV and Generate Order Line Item Array
 
     r1 = 'Variant ID'
     r2 = 'Metafield: ' + kitkey + ' [integer]'
@@ -62,7 +66,6 @@ def buildKit(request, kitinput):
                 logging.debug(output)
                 time.sleep(.25)
 
-    logging.debug('Opening connection with Shopify')
     draftorderoutput = {
         'draft_order':
         {
@@ -73,9 +76,10 @@ def buildKit(request, kitinput):
 
     json_order = json.dumps(draftorderoutput)
 
+    ### Connect to Shopify and Make Draft Order
+
     host = 'cleaveland-aircraft-tool-3.myshopify.com'
     endpoint = '/admin/api/2020-01/draft_orders.json'
-
     headers = {
         'X-Shopify-Access-Token': '6fc2d89e55f911aa86673ed6d4a12b7f',
         'Content-Type': 'application/json',
@@ -83,15 +87,25 @@ def buildKit(request, kitinput):
 
     conn = http.client.HTTPSConnection(host)
     conn.request('POST', endpoint, json_order, headers)
-    response = conn.getresponse()
-    logging.debug(response)
+    r = conn.getresponse()
+    logging.debug(r.headers)
+    loc = r.headers["Location"]
 
     conn.close()
 
+    ### remove local CSV file
     os.remove(filename)
-    return render(request, "build.html", {'response': response})
 
+    ###
+    # return render(request, "build.html",
+    # {
+    #     'location': loc,
+    #     'kitkey': kitkey,
+    # }
+    # )
 
+    ### Redirect to the newly created draft order
+    return redirect(loc)
 
 def selectKit(request):
     return render(request, "select.html")
