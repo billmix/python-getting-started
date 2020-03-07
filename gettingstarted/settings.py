@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "shopify",
     "hello",
 ]
 
@@ -115,5 +116,7 @@ USE_TZ = True
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATIC_URL = "/static/"
 
+# shop_url = "https://%s:%s@cleaveland-aircraft-tool-3.myshopify.com/admin/api/%s" % ('d4439f4d30bfd39b151d396f2b7ac4f4', '7ad9171ad550bd4c35195fc002f17983', '2020-01')
+# shopify.ShopifyResource.set_site(shop_url)
 
 django_heroku.settings(locals())
